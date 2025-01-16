@@ -165,9 +165,10 @@ for i in range(n_games):
     episode_steps.append(episode_step)
     if (i+1) % print_interval == 0:
         # Print average score and number of steps in episode
+        max_score = np.max(scores[-print_interval:-1])
         average_score = np.mean(scores[-print_interval:-1])
         average_episode_steps = np.mean(episode_steps[-print_interval:-1])
-        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}')
+        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}, max_score={max_score:.1f}')
 # Plot scores        
         plt.figure('Score')
         plt.clf()
