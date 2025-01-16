@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-# import mdock
+#import mdock
 from Flappy_Bird import CrappyBirdGame
 import pygame
 
@@ -16,7 +16,7 @@ batch_size = 512
 buffer_size = 100_000
 learning_rate = 0.0001
 steps_per_gradient_update = 10
-max_episode_step = 500
+max_episode_step = 10000
 input_dimension = 3
 hidden_dimension = 256
 output_dimension = 2
@@ -201,35 +201,35 @@ for i in range(n_games):
         torch.save(q_net.state_dict(), 'q_net.pt')
 env.close()
 
-# # %% Play loop
-# # Load model
-# q_net.load_state_dict(torch.load('q_net.pt'))
+# %% Play loop
+# Load model
+q_net.load_state_dict(torch.load('q_net.pt'))
 
-# # Create envionment
-# env = CrappyBirdGame.CrappyBirdGame()
+# Create envionment
+env = CrappyBirdGame()
 
-# # Reset game
-# score = 0
-# done = False
-# observation = env.reset()
-# episode_step = 0
+# Reset game
+score = 0
+done = False
+observation = env.reset()
+episode_step = 0
 
-# # Play episode        
-# with torch.no_grad():    
-#     while (not done) and (episode_step < max_episode_step):
-#         pygame.event.get()
-#         # Choose action and step environment
-#         action = np.argmax(q_net(state_to_input(observation)).detach().numpy())
-#         observation, reward, done = env.step(action_names[action])
-#         score += reward
-#         env.render()
-#         episode_step += 1
+# Play episode        
+with torch.no_grad():    
+    while (not done) and (episode_step < max_episode_step):
+        pygame.event.get()
+        # Choose action and step environment
+        action = np.argmax(q_net(state_to_input(observation)).detach().numpy())
+        observation, reward, done = env.step(action_names[action])
+        score += reward
+        env.render()
+        episode_step += 1
 
-# # Print score
-# print(f'Score={score:.0f}')
+# Print score
+print(f'Score={score:.0f}')
 
-# # Close and clean up
-# env.close()
+# Close and clean up
+env.close()
 
-# # %%
 # %%
+
