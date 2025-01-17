@@ -12,7 +12,7 @@ epsilon_reduction_factor = 0.01**(1 / 10000)
 gamma = 0.99
 batch_size = 512
 buffer_size = 100_000
-learning_rate = 0.0001
+learning_rate = 0.001
 steps_per_gradient_update = 10
 max_episode_step = 500
 input_dimension = 3
@@ -192,6 +192,7 @@ if __name__ == "__main__":
             plt.xlabel('Episode')
             plt.ylabel('Loss')
             plt.grid(True)
+            plt.show()
 
         # Save model periodically
         if i % save_interval == 0:
