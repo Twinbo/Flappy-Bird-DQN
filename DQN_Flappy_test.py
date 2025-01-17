@@ -2,12 +2,12 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-#import mdock
+# import mdock
 from Flappy_Bird import CrappyBirdGame
 import pygame
 
 # %% Parameters
-n_games = 10000
+n_games = 2000
 epsilon = 1
 epsilon_min = 0.01
 epsilon_reduction_factor = 0.01**(1/10000)
@@ -16,10 +16,12 @@ batch_size = 512
 buffer_size = 100_000
 learning_rate = 0.0001
 steps_per_gradient_update = 10
-max_episode_step = 10000
+max_episode_step = 500
 input_dimension = 3
 hidden_dimension = 256
 output_dimension = 2
+save_interval = 100 #Gemmer vægtende for hvert 100 episode
+max_score = -30
 
 # %% Neural network, optimizer and loss
 q_net = torch.nn.Sequential(
@@ -168,7 +170,9 @@ for i in range(n_games):
         max_episode_score = np.max(scores[-print_interval:-1])
         average_score = np.mean(scores[-print_interval:-1])
         average_episode_steps = np.mean(episode_steps[-print_interval:-1])
-        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}, max episode sore={max_episode_score:.1f}')
+        if max_episode_score > max_score:
+            max_score = max_episode_score
+        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}, max episode sore={max_episode_score:.1f}, max socre {max_score}')
 # Plot scores        
         plt.figure('Score')
         plt.clf()
@@ -199,38 +203,131 @@ for i in range(n_games):
         #mdock.drawnow()
 
         # Save model
+    if i % save_interval == 0:
         torch.save(q_net.state_dict(), 'q_net.pt')
-env.close()
+        print(f"Model weights saved at episode {i}")
 
-# %% Play loop
-# Load model
-q_net.load_state_dict(torch.load('q_net.pt'))
+    #print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}')
 
-# Create envionment
-env = CrappyBirdGame()
+    # Reduce epsilon
+    epsilon = max(epsilon_min, epsilon * epsilon_reduction_factor)
 
-# Reset game
-score = 0
-done = False
-observation = env.reset()
-episode_step = 0
+# Main function to choose training mode
+# Main function to choose training mode
+if __name__ == "__main__":
+    mode = input("Enter 'new' to train from scratch or 'continue' to continue training: ").strip().lower()
+    if mode == 'new':
+        print("Training from scratch...")
+        epsilon = 1  # Reset exploration rate for new training
+        step_count = 0  # Reset step counter
+        scores = []  # Clear scores
+        losses = []  # Clear losses
+        episode_steps = []  # Clear episode steps
+    elif mode == 'continue':
+        print("Loading trained model and continuing training...")
+        try:
+            q_net.load_state_dict(torch.load('q_net.pt'))
+            print("Model loaded successfully.")
+        except FileNotFoundError:
+            print("No saved model found. Starting from scratch...")
+        # Optionally adjust epsilon if you want to balance exploration/exploitation
+        epsilon = 0.1  # Lower exploration rate to leverage learned policy
+    else:
+        print("Invalid mode selected. Please enter 'new' or 'continue'.")
+        exit()
 
-# Play episode        
-with torch.no_grad():    
-    while (not done) and (episode_step < max_episode_step):
-        pygame.event.get()
-        # Choose action and step environment
-        action = np.argmax(q_net(state_to_input(observation)).detach().numpy())
-        observation, reward, done = env.step(action_names[action])
-        score += reward
-        env.render()
-        episode_step += 1
+    # Start training loop
+    for i in range(n_games):
+        score = 0
+        episode_step = 0
+        episode_loss = 0
+        episode_gradient_step = 0
+        done = False
+        env_observation = env.reset_game()
+        observation = state_to_input(env_observation)
 
-# Print score
-print(f'Score={score:.0f}')
+        while not done and episode_step < max_episode_step:
+            # Action selection
+            if np.random.rand() < epsilon:
+                action = np.random.choice(actions)  # Random action
+            else:
+                action = np.argmax(q_net(observation).detach().numpy())  # Best action
 
-# Close and clean up
-env.close()
+            # Take action and observe outcome
+            env_observation_next, reward, done = env.step(action)
+            observation_next = state_to_input(env_observation_next)
+            score += reward
+
+            # Store experience
+            buffer_index = step_count % buffer_size
+            obs_buffer[buffer_index] = observation
+            obs_next_buffer[buffer_index] = observation_next
+            action_buffer[buffer_index] = action
+            reward_buffer[buffer_index] = reward
+            done_buffer[buffer_index] = done
+
+            # Update observation
+            observation = observation_next
+
+            # Train on a batch from the replay buffer
+            if step_count > batch_size and step_count % steps_per_gradient_update == 0:
+                batch_idx = np.random.choice(
+                    min(buffer_size, step_count), size=batch_size, replace=False
+                )
+                out = q_net(obs_buffer[batch_idx])
+                val = out[np.arange(batch_size), action_buffer[batch_idx]]
+                with torch.no_grad():
+                    out_next = q_net(obs_next_buffer[batch_idx])
+                    target = reward_buffer[batch_idx] + gamma * torch.max(out_next, dim=1).values * (1 - done_buffer[batch_idx])
+                loss = loss_function(val, target)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                episode_gradient_step += 1
+                episode_loss += loss.item()
+
+            episode_step += 1
+            step_count += 1
+
+        scores.append(score)
+        losses.append(episode_loss / (episode_gradient_step + 1))
+        episode_steps.append(episode_step)
+
+        # Periodic logging and saving
+        if (i + 1) % print_interval == 0:
+            avg_score = np.mean(scores[-print_interval:])
+            avg_steps = np.mean(episode_steps[-print_interval:])
+            print(f"Episode={i+1}, Avg Score={avg_score:.2f}, Avg Steps={avg_steps:.0f}")
+            plt.figure('Score')
+            plt.clf()
+            plt.plot(scores, '.')
+            plt.title(f'Step {step_count}: eps={epsilon:.3}')
+            plt.xlabel('Episode')
+            plt.ylabel('Score')
+            plt.grid(True)
+            
+            # Plot number of steps
+            plt.figure('Steps per episode')
+            plt.clf()
+            plt.plot(episode_steps, '.')
+            plt.xlabel('Episode')
+            plt.ylabel('Steps')
+            plt.grid(True)
+ 
+            # Plot last batch loss
+            plt.figure('Loss')
+            plt.clf()
+            plt.plot(losses, '.')
+            plt.xlabel('Episode')
+            plt.ylabel('Loss')
+            plt.grid(True)
+            plt.show()
+
+        if i % save_interval == 0:
+            torch.save(q_net.state_dict(), 'q_net.pt')
+            print(f"Model saved at episode {i + 1}")
+
 
 # %%
-
