@@ -20,9 +20,17 @@ max_episode_step = 10000
 input_dimension = 3
 hidden_dimension = 256
 output_dimension = 2
+max_score = 0
 
 # %% Neural network, optimizer and loss
 q_net = torch.nn.Sequential(
+    torch.nn.Linear(input_dimension, hidden_dimension),
+    torch.nn.ReLU(),
+    torch.nn.Linear(hidden_dimension, hidden_dimension),
+    torch.nn.ReLU(),
+    torch.nn.Linear(hidden_dimension, output_dimension)
+)
+target_net = torch.nn.Sequential(
     torch.nn.Linear(input_dimension, hidden_dimension),
     torch.nn.ReLU(),
     torch.nn.Linear(hidden_dimension, hidden_dimension),
@@ -168,7 +176,9 @@ for i in range(n_games):
         max_episode_score = np.max(scores[-print_interval:-1])
         average_score = np.mean(scores[-print_interval:-1])
         average_episode_steps = np.mean(episode_steps[-print_interval:-1])
-        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}, max episode sore={max_episode_score:.1f}')
+        if max_score < max_episode_score:
+            max_score = max_episode_score
+        print(f'Episode={i+1}, Score={average_score:.1f}, Steps={average_episode_steps:.0f}, max episode sore={max_episode_score:.1f}, max score={max_score:.1f}')
 # Plot scores        
         plt.figure('Score')
         plt.clf()
@@ -177,6 +187,7 @@ for i in range(n_games):
         plt.xlabel('Episode')
         plt.ylabel('Score')
         plt.grid(True)
+        plt.show
         
         # Plot number of steps
         plt.figure('Steps per episode')
@@ -185,6 +196,7 @@ for i in range(n_games):
         plt.xlabel('Episode')
         plt.ylabel('Steps')
         plt.grid(True)
+        plt.show
 
         # Plot last batch loss
         plt.figure('Loss')
@@ -193,14 +205,19 @@ for i in range(n_games):
         plt.xlabel('Episode')
         plt.ylabel('Loss')
         plt.grid(True)
+        plt.show
 
         # Estimate validation error
 
         #mdock.drawnow()
 
+        if i % 10 == 0:
+            target_net.load_state_dict(q_net.state_dict())
+
+
         # Save model
         torch.save(q_net.state_dict(), 'q_net.pt')
-env.close()
+# env.close()
 
 # %% Play loop
 # Load model
