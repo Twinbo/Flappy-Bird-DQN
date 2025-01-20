@@ -30,7 +30,7 @@ class CrappyBirdGame:
         self.scroll_speed = 4
         self.game_over = False
         self.pipe_gap = 150
-        self.pipe_dist_x = 150
+        self.pipe_dist_x = 125
         self.score = 0
         self.reward = 0
         self.pass_pipe = False

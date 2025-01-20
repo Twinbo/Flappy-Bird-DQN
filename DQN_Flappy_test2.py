@@ -29,6 +29,7 @@ q_net = torch.nn.Sequential(
     torch.nn.ReLU(),
     torch.nn.Linear(hidden_dimension, output_dimension)
 )
+
 optimizer = torch.optim.Adam(q_net.parameters(), lr=learning_rate)
 loss_function = torch.nn.MSELoss()
 
