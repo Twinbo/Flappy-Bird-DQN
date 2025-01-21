@@ -7,7 +7,7 @@ class CrappyBirdGame:
     def __init__(self):
         pygame.init()
         self.clock = pygame.time.Clock()
-        self.fps = 30
+        self.fps = 60
 
         # Screen dimensions
         self.screen_width = 551
@@ -214,7 +214,7 @@ class CrappyBirdGame:
                         self.rendering = not self.rendering
 
             if not self.game_over and self.flying == True:
-                self.reward += 0.5
+                self.reward += 1
                 self.spawn_pipes()
                 self.update_pipes()
                 self.handle_bird_movement()
