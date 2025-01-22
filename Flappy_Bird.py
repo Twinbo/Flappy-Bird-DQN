@@ -30,8 +30,8 @@ class CrappyBirdGame:
         self.scroll_speed = 4
         self.game_over = False
         self.pipe_gap = 150
-        self.pipe_dist_x = 125
-        self.score = 0
+        self.pipe_dist_x = 300
+        self.score_game = 0
         self.reward = 0
         self.pass_pipe = False
         self.penalty_applied = False
@@ -66,24 +66,41 @@ class CrappyBirdGame:
         self.bird_vel = 0
         self.flying = True
         self.game_over = False
-        self.score = 0
+        self.score_game = 0
         self.reward = 0
         self.penalty_applied = False
 
         return self.get_states()
 
     def get_states(self):
-        distance, gap_center = self.get_distance_to_next_pipe()
-        return self.bird_rect.y, distance, gap_center # Bird y, distance to next pipe, gap center
+        pipe_data = self.get_distance_to_next_pipe()
+        distance_1, pipe_top_1, pipe_btm_1 = pipe_data[0]
+        distance_2, pipe_top_2, pipe_btm_2 = pipe_data[1]
+
+        return (self.bird_rect.y, self.bird_vel, distance_1, pipe_top_1, pipe_btm_1,
+                distance_2, pipe_top_2, pipe_btm_2)
+
         
     def get_distance_to_next_pipe(self):
+        distances = []
         for pipe in self.pipes:
             if pipe["rect"].centerx > self.bird_rect.centerx:
                 distance = pipe["rect"].left - self.bird_rect.right
-                gap_center = pipe["rect"].top - (self.pipe_gap / 2)
-                return distance, gap_center
-        return 0, 0  # No pipes in front
-
+                if distance < 1:  # Ensure distance is positive
+                    distance = 1
+                if pipe["pos"] == -1:  # Bottom pipe
+                    pipe_top = pipe["rect"].top - self.pipe_gap
+                    pipe_btm = pipe["rect"].top
+                    distances.append((distance, pipe_top, pipe_btm))
+                if len(distances) == 2:  # Stop after finding two pipes ahead
+                    break
+        # Return distances for the first and second pipe; pad with zeros if less than two pipes exist
+        if len(distances) == 1:
+            distances.append((0, 0, 0))
+        elif len(distances) == 0:
+            distances = [(0, 0, 0), (0, 0, 0)]
+        return distances
+    
     def draw_pipes(self):
         for pipe in self.pipes:
             if pipe["pos"] == -1:
@@ -171,7 +188,7 @@ class CrappyBirdGame:
             # Update score and rewards
             for pipe in self.pipes:
                 if not self.pass_pipe and pipe["rect"].right < self.bird_rect.left:
-                    self.score += 1
+                    self.score_game += 1
                     self.reward += 10
                     self.pass_pipe = True
 
@@ -188,7 +205,51 @@ class CrappyBirdGame:
         # print(f"Done: {self.done}")
 
         return next_state, self.reward, self.done
-    
+    def render_model_performance(self, model, state_to_input_func, num_games=50):
+        self.rendering = True
+
+        for game in range(num_games):
+            print(f"Starting game {game + 1}/{num_games}")
+            self.reset_game()  # Start a new game
+            done = False
+            score = 0
+
+            # Play one game
+            while not done:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        return
+
+                # Convert current state to model input
+                state = self.get_states()
+                input_tensor = state_to_input_func(state)
+
+                # Let the model choose an action
+                with torch.no_grad():
+                    action = torch.argmax(model(input_tensor)).item()
+
+                # Take a step in the environment with the chosen action
+                _, reward, done = self.step(action)
+
+                # Render the screen
+                if self.rendering:
+                    self.screen.blit(self.bg, (0, 0))  # Background
+                    self.draw_pipes()  # Pipes
+                    self.screen.blit(self.bird_imgs[self.bird_index], self.bird_rect)  # Bird
+                    self.screen.blit(self.ground, (0, 768))  # Ground
+                    self.draw_text(str(int(self.score_game)), self.screen_width // 2, 30)  # Score
+
+                    pygame.display.update()
+                    self.clock.tick(self.fps)  # Limit the frame rate
+                
+                score += reward
+
+            print(f"Game {game + 1} ended with reward: {score}, and score: {self.score_game}")
+
+        pygame.quit()
+        self.close()
+
     def run(self):
         running = True
         while running:
@@ -229,7 +290,7 @@ class CrappyBirdGame:
                 # Update score and reward
                 for pipe in self.pipes:
                     if not self.pass_pipe and pipe["rect"].right < self.bird_rect.left:
-                        self.score += 1
+                        self.score_game += 1
                         self.reward += 10
                         self.pass_pipe = True
 
@@ -242,7 +303,7 @@ class CrappyBirdGame:
                 self.draw_pipes()
                 self.screen.blit(self.bird_imgs[self.bird_index], self.bird_rect)
                 self.screen.blit(self.ground, (0, 520))
-                self.draw_text(str(self.score), self.screen_width // 2, 30)
+                self.draw_text(str(self.score_game), self.screen_width // 2, 30)
 
                 if self.game_over:
                     self.screen.blit(self.button_img, self.button_rect.topleft)
