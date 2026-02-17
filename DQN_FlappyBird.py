@@ -91,7 +91,7 @@ done_buffer = torch.zeros(buffer_size)
 
 # %% check if data is available
 # Load checkpoint if it exists
-checkpoint_path = '/Users/haseebshafi/Desktop/Flappy bird/q_net_checkpoint.pt'
+checkpoint_path = 'q_net_checkpoint_0_0001 training 20000.pt'
 if os.path.exists(checkpoint_path):
     checkpoint = torch.load(checkpoint_path)
     q_net.load_state_dict(checkpoint['model_state_dict'])
