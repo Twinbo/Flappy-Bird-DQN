@@ -114,7 +114,7 @@ class FlappyBirdGame:
                 flipped_pipe = pygame.transform.flip(self.pipe_img, False, True)
                 self.screen.blit(flipped_pipe, pipe["rect"])
 
-            # #red circle at gap height
+            #red circle at gap height
             # if pipe["pos"] == -1:  # Bottom pipe
             #     gap_center_top = pipe["rect"].top - self.pipe_gap
             #     gap_center_btm = pipe["rect"].top 
@@ -220,7 +220,10 @@ class FlappyBirdGame:
             for pipe in self.pipes:
                 if not pipe.get("passed", False) and pipe["rect"].right < self.bird_rect.left:
                     self.reward = 5
-                    pipe["passed"] = True  
+                    pipe["passed"] = True
+                   
+
+        
 
         next_state = self.get_states()
 
@@ -264,9 +267,11 @@ class FlappyBirdGame:
                 for pipe in self.pipes:
                     if not pipe.get("passed", False) and pipe["rect"].right < self.bird_rect.left:
                         self.reward += 5
-                        pipe["passed"] = True  
+                        pipe["passed"] = True
+                        if pipe["pos"] == -1:  # Only count once per pipe pair
+                            self.score_game += 1  
 
-            print(self.get_states(), self.reward, self.game_over)
+            print(self.get_states(), self.reward, self.game_over, self.score_game)
 
             if self.rendering:
                 self.screen.blit(self.bg, (0, 0))
